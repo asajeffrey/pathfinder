@@ -27,12 +27,20 @@ use std::time::Duration;
 
 pub struct GLDevice {
     version: GLVersion,
+    default_framebuffer_id: GLuint,
 }
 
 impl GLDevice {
     #[inline]
     pub fn new(version: GLVersion) -> GLDevice {
-        GLDevice { version }
+        let mut default_framebuffer_id = 0;
+	unsafe {
+	    gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut default_framebuffer_id);
+	}
+        GLDevice {
+	    version: version,
+	    default_framebuffer_id: default_framebuffer_id as GLuint,
+	}
     }
 
     fn set_texture_parameters(&self, texture: &GLTexture) {
@@ -455,7 +463,7 @@ impl Device for GLDevice {
     fn read_pixels_from_default_framebuffer(&self, size: Point2DI32) -> Vec<u8> {
         let mut pixels = vec![0; size.x() as usize * size.y() as usize * 4];
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0); ck();
+            gl::BindFramebuffer(gl::FRAMEBUFFER, self.default_framebuffer_id); ck();
             gl::ReadPixels(0,
                            0,
                            size.x() as GLsizei,
@@ -594,7 +602,7 @@ impl Device for GLDevice {
     #[inline]
     fn bind_default_framebuffer(&self, viewport: RectI32) {
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0); ck();
+            gl::BindFramebuffer(gl::FRAMEBUFFER, self.default_framebuffer_id); ck();
             gl::Viewport(viewport.origin().x(),
                          viewport.origin().y(),
                          viewport.size().x(),
@@ -603,10 +611,11 @@ impl Device for GLDevice {
     }
 
     #[inline]
-    fn bind_framebuffer(&self, framebuffer: &GLFramebuffer) {
+    fn bind_framebuffer(&self, framebuffer: &GLFramebuffer, bounds: RectI32) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer.gl_framebuffer); ck();
-            gl::Viewport(0, 0, framebuffer.texture.size.x(), framebuffer.texture.size.y()); ck();
+            gl::Viewport(bounds.origin().x(), bounds.origin().y(), bounds.size().x(), bounds.size().y()); ck();
+            gl::Scissor(bounds.origin().x(), bounds.origin().y(), bounds.size().x(), bounds.size().y()); ck();
         }
     }
 

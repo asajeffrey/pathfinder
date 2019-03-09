@@ -1,21 +1,27 @@
 [package]
-name = "pathfinder_demo"
+name = "pathfinder_immersive_demo"
 version = "0.1.0"
 edition = "2018"
-authors = ["Patrick Walton <pcwalton@mimiga.net>"]
+authors = ["Alan Jeffrey <ajeffrey@mozilla.com>"]
 
 [dependencies]
-clap = "2.32"
 gl = "0.6"
-jemallocator = { version = "0.1", optional = true }
-nfd = { version = "0.0.4", optional = true }
 rayon = "1.0"
 usvg = "0.4"
+egl = { version = "0.2", optional = true }
+glutin = { version = "0.19", optional = true }
+log = "0.4"
+smallvec = "0.6"
 
-[dependencies.image]
-version = "0.21"
-default-features = false
-features = ["png_codec"]
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+glwindow = ["glutin"]
+magicleap = ["egl"]
+
+[dependencies.pathfinder_demo]
+path = "../common"
 
 [dependencies.pathfinder_geometry]
 path = "../../geometry"

@@ -15,6 +15,7 @@ use crate::ui::{DemoUI, UIAction};
 use crate::window::{Event, Keycode, SVGPath, Window, WindowSize};
 use clap::{App, Arg};
 use image::ColorType;
+#[cfg(feature = "jemallocator")]
 use jemallocator;
 use pathfinder_geometry::basic::point::{Point2DF32, Point2DI32, Point3DF32};
 use pathfinder_geometry::basic::rect::{RectF32, RectI32};
@@ -46,7 +47,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 use usvg::{Options as UsvgOptions, Tree};
 
-#[global_allocator]
+#[cfg_attr(feature = "jemallocator", global_allocator)]
+#[cfg(feature = "jemallocator")]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 static DEFAULT_SVG_VIRTUAL_PATH: &'static str = "svg/Ghostscript_Tiger.svg";
@@ -610,13 +612,13 @@ impl<W> DemoApp<W> where W: Window {
 
 }
 
-struct SceneThreadProxy {
-    sender: Sender<MainToSceneMsg>,
-    receiver: Receiver<SceneToMainMsg>,
+pub struct SceneThreadProxy {
+    pub sender: Sender<MainToSceneMsg>,
+    pub receiver: Receiver<SceneToMainMsg>,
 }
 
 impl SceneThreadProxy {
-    fn new(scene: Scene, options: Options) -> SceneThreadProxy {
+    pub fn new(scene: Scene, options: Options) -> SceneThreadProxy {
         let (main_to_scene_sender, main_to_scene_receiver) = mpsc::channel();
         let (scene_to_main_sender, scene_to_main_receiver) = mpsc::channel();
         SceneThread::new(scene, scene_to_main_sender, main_to_scene_receiver, options);
@@ -835,20 +837,20 @@ fn center_of_window(window_size: &WindowSize) -> Point2DF32 {
     window_size.device_size().to_f32().scale(0.5)
 }
 
-enum Camera {
+pub enum Camera {
     TwoD(Transform2DF32),
     ThreeD { transform: CameraTransform3D, velocity: Point3DF32 },
 }
 
 impl Camera {
-    fn new_2d(view_box: RectF32, drawable_size: Point2DI32) -> Camera {
+    pub fn new_2d(view_box: RectF32, drawable_size: Point2DI32) -> Camera {
         let scale = i32::min(drawable_size.x(), drawable_size.y()) as f32 *
             scale_factor_for_view_box(view_box);
         let origin = drawable_size.to_f32().scale(0.5) - view_box.size().scale(scale * 0.5);
         Camera::TwoD(Transform2DF32::from_scale(&Point2DF32::splat(scale)).post_translate(origin))
     }
 
-    fn new_3d(view_box: RectF32) -> Camera {
+    pub fn new_3d(view_box: RectF32) -> Camera {
         Camera::ThreeD {
             transform: CameraTransform3D::new(view_box),
             velocity: Point3DF32::default(),
@@ -861,7 +863,7 @@ impl Camera {
 }
 
 #[derive(Clone, Copy)]
-struct CameraTransform3D {
+pub struct CameraTransform3D {
     position: Point3DF32,
     yaw: f32,
     pitch: f32,
@@ -869,7 +871,7 @@ struct CameraTransform3D {
 }
 
 impl CameraTransform3D {
-    fn new(view_box: RectF32) -> CameraTransform3D {
+    pub fn new(view_box: RectF32) -> CameraTransform3D {
         let scale = scale_factor_for_view_box(view_box);
         CameraTransform3D {
             position: Point3DF32::new(0.5 * view_box.max_x(),
