@@ -38,14 +38,19 @@ use pathfinder_geometry::basic::rect::RectF32;
 use pathfinder_geometry::basic::rect::RectI32;
 use pathfinder_geometry::basic::transform3d::Transform3DF32;
 use pathfinder_geometry::basic::transform3d::Perspective;
+use pathfinder_gl::GLVersion;
+use pathfinder_gpu::resources::FilesystemResourceLoader;
+use pathfinder_gpu::resources::ResourceLoader;
 
 use smallvec::SmallVec;
 
 use std::error::Error;
+use std::env;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::fmt;
 use std::io::Write;
+use std::io;
 use std::mem;
 use std::ptr;
 use std::thread;
@@ -66,6 +71,10 @@ pub fn magicleap_pathfinder_demo(egl_display: EGLDisplay, egl_context: EGLContex
         },
         Err(MagicLeapError::SVG(err)) => {
             error!("SVG error {:?}", err);
+            ML_RESULT_UNSPECIFIED_FAILURE
+        },
+        Err(MagicLeapError::IO(err)) => {
+            error!("IO error {:?}", err);
             ML_RESULT_UNSPECIFIED_FAILURE
         },
     }
@@ -93,6 +102,7 @@ pub struct MagicLeapDisplay {
     size: Point2DI32,
     cameras: Vec<MagicLeapCamera>,
     frame_handle: MLHandle,
+    resource_loader: FilesystemResourceLoader,
     running: bool,
     in_frame: bool,
 }
@@ -107,12 +117,21 @@ pub struct MagicLeapCamera {
 #[derive(Debug)]
 pub enum MagicLeapError {
     SVG(usvg::Error),
+    IO(io::Error),
     ML(MLResult),
 }
 
 impl Display for MagicLeapDisplay {
     type Camera = MagicLeapCamera;
     type Error = MagicLeapError;
+
+    fn resource_loader(&self) -> &dyn ResourceLoader {
+        &self.resource_loader
+    }
+
+    fn gl_version(&self) -> GLVersion {
+        GLVersion::GL3
+    }
 
     fn make_current(&mut self) -> Result<(), MagicLeapError> {
         debug!("PF making GL context current");
@@ -242,6 +261,7 @@ impl MagicLeapDisplay {
             .map(|target| (target.width as i32, target.height as i32))
             .max()
             .unwrap_or_default();
+        let resource_loader = FilesystemResourceLoader::new(env::current_dir()?);
         Ok(MagicLeapDisplay {
             egl_display,
             egl_context,
@@ -250,6 +270,7 @@ impl MagicLeapDisplay {
             size: Point2DI32::new(max_width, max_height),
             cameras: Vec::new(),
             frame_handle: ML_HANDLE_INVALID,
+	    resource_loader,
             running: true,
             in_frame: false,
         })
@@ -271,6 +292,12 @@ impl From<usvg::Error> for MagicLeapError {
     }
 }
 
+impl From<io::Error> for MagicLeapError {
+    fn from(err: io::Error) -> MagicLeapError {
+        MagicLeapError::IO(err)
+    }
+}
+
 impl From<MLResult> for MagicLeapError {
     fn from(err: MLResult) -> MagicLeapError {
         MagicLeapError::ML(err)
@@ -281,6 +308,7 @@ impl fmt::Display for MagicLeapError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
             MagicLeapError::SVG(ref err) => err.fmt(formatter),
+            MagicLeapError::IO(ref err) => err.fmt(formatter),
             MagicLeapError::ML(ref err) => err.fmt(formatter),
         }
     }
