@@ -165,7 +165,7 @@ impl<D> Renderer<D> where D: Device {
                               .unwrap_or_else(|| self.device.create_timer_query());
         self.device.begin_timer_query(&timer_query);
 
-        self.device.bind_default_framebuffer(self.main_framebuffer_bounds);
+        self.device.bind_default_framebuffer(self.viewport);
 
         self.upload_shaders(&built_scene.shaders);
 
@@ -214,11 +214,6 @@ impl<D> Renderer<D> where D: Device {
     #[inline]
     pub fn set_main_framebuffer_size(&mut self, new_framebuffer_size: Point2DI32) {
         self.debug_ui.ui.set_framebuffer_size(new_framebuffer_size);
-    }
-
-    #[inline]
-    pub fn set_main_framebuffer_bounds(&mut self, new_framebuffer_bounds: RectI32) {
-        self.main_framebuffer_bounds = new_framebuffer_bounds;
     }
 
     #[inline]
@@ -288,8 +283,7 @@ impl<D> Renderer<D> where D: Device {
 
     fn draw_batch_fills(&mut self, batch: &Batch) {
         let mask_size = Point2DI32::new(MASK_FRAMEBUFFER_WIDTH, MASK_FRAMEBUFFER_HEIGHT);
-        let mask_bounds = RectI32::new(Point2DI32::new(0, 0), mask_size);
-        self.device.bind_framebuffer(&self.mask_framebuffer, mask_bounds);
+        self.device.bind_framebuffer(&self.mask_framebuffer);
         // TODO(pcwalton): Only clear the appropriate portion?
         self.device.clear(Some(F32x4::splat(0.0)), None, None);
 
@@ -458,7 +452,7 @@ impl<D> Renderer<D> where D: Device {
     fn bind_draw_framebuffer(&self) {
         if self.postprocessing_needed() {
             let framebuffer = self.postprocess_source_framebuffer.as_ref().unwrap();
-            self.device.bind_framebuffer(framebuffer, self.main_framebuffer_bounds);
+            self.device.bind_framebuffer(framebuffer);
         } else {
             self.device.bind_default_framebuffer(self.viewport);
         }
@@ -482,7 +476,7 @@ impl<D> Renderer<D> where D: Device {
         };
 
         let framebuffer = self.postprocess_source_framebuffer.as_ref().unwrap();
-        self.device.bind_framebuffer(framebuffer, self.main_framebuffer_bounds);
+        self.device.bind_framebuffer(framebuffer);
         self.device.clear(Some(F32x4::default()), None, None);
     }
 

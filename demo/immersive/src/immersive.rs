@@ -14,7 +14,6 @@ use pathfinder_demo::SceneToMainMsg;
 use pathfinder_demo::Camera;
 use pathfinder_demo::CameraTransform3D;
 use pathfinder_gl::GLDevice;
-use pathfinder_gpu::Resources;
 use pathfinder_renderer::gpu::renderer::Renderer;
 use pathfinder_geometry::basic::point::Point2DI32;
 use pathfinder_geometry::basic::point::Point2DF32;
@@ -45,7 +44,7 @@ pub struct ImmersiveDemo<D> {
     svg_to_world: Option<Transform3DF32>,
 }
 
-static DEFAULT_SVG_FILENAME: &'static str = "svg/Ghostscript_Tiger.svg";
+static DEFAULT_SVG_VIRTUAL_PATH: &'static str = "svg/Ghostscript_Tiger.svg";
 
 // SVG dimensions in metres
 const MAX_SVG_HEIGHT: f32 = 1.0;
@@ -55,16 +54,17 @@ const DEFAULT_SVG_DISTANCE: f32 = 1.5;
 impl<D: Display> ImmersiveDemo<D> {
     pub fn new(mut display: D) -> Result<Self, D::Error> {
         display.make_current()?;
-        let resources = Resources::locate();
-        let options = Options::get(&resources);
-        let mut svg_path = resources.resources_directory.clone(); svg_path.push(DEFAULT_SVG_FILENAME);
-        let tree = usvg::Tree::from_file(svg_path, &usvg::Options::default())?;
+        let resources = display.resource_loader();
+        let options = Options::get();
+        let svg_data = resources.slurp(DEFAULT_SVG_VIRTUAL_PATH)?;
+        let tree = usvg::Tree::from_data(&svg_data[..], &usvg::Options::default())?;
         let svg = BuiltSVG::from_tree(tree);
 	let svg_size = svg.scene.view_box.size();
         let scene_thread_proxy = SceneThreadProxy::new(svg.scene, options);
         let _ = scene_thread_proxy.sender.send(MainToSceneMsg::SetDrawableSize(display.size()));
-        let device = GLDevice::new();
-        let renderer = Renderer::new(device, &resources, display.size());
+        let device = GLDevice::new(display.gl_version());
+	let viewport = RectI32::new(Point2DI32::new(0, 0), display.size());
+        let renderer = Renderer::new(device, resources, viewport, display.size());
         Ok(ImmersiveDemo {
             display,
             renderer,
@@ -97,33 +97,32 @@ impl<D: Display> ImmersiveDemo<D> {
                 .pre_mul(&view.inverse())
 	});
 
-        for camera in cameras.iter_mut() {
-	    let perspective = camera.perspective()
+        let render_transforms = cameras.iter()
+	    .map(|camera| RenderTransform::Perspective(
+	        camera.perspective()
 	        .post_mul(&camera.view())
-	        .post_mul(&svg_to_world);
-            let msg = MainToSceneMsg::Build(BuildOptions {
-                render_transform: RenderTransform::Perspective(perspective),
-                stem_darkening_font_size: None,
-            });
-	    let _ = self.scene_thread_proxy.sender.send(msg);
-	}
+	        .post_mul(&svg_to_world)
+	    )).collect();
+        let msg = MainToSceneMsg::Build(BuildOptions {
+            render_transforms: render_transforms,
+            stem_darkening_font_size: None,
+        });
+        let _ = self.scene_thread_proxy.sender.send(msg);
 
-        for camera in cameras.iter_mut() {
-            camera.make_current()?;
-	    let bounds = camera.bounds();
-            let background = F32x4::new(0.0, 0.0, 0.0, 1.0);
-            self.renderer.device.clear(Some(background), Some(1.0), Some(0));
-            self.renderer.enable_depth();
-            self.renderer.set_main_framebuffer_bounds(bounds);
-            if let Ok(reply) = self.scene_thread_proxy.receiver.recv() {
+        if let Ok(reply) = self.scene_thread_proxy.receiver.recv() {
+            for (camera, scene) in cameras.iter_mut().zip(reply.render_scenes) {
                 debug!("PF rendering eye after {}ms", (Instant::now() - start).as_millis());
-                let SceneToMainMsg::Render { ref built_scene, .. } = reply;
-                self.renderer.render_scene(built_scene);
+                camera.make_current()?;
+  	        let bounds = camera.bounds();
+                let background = F32x4::new(0.0, 0.0, 0.0, 1.0);
+                self.renderer.device.clear(Some(background), Some(1.0), Some(0));
+                self.renderer.enable_depth();
+                self.renderer.set_viewport(bounds);
+                self.renderer.render_scene(&scene.built_scene);
             }
 	}
 
 	debug!("PF rendered frame after {}ms", (Instant::now() - start).as_millis());
-
         self.display.end_frame()?;
         Ok(())
     }

@@ -29,10 +29,15 @@ use pathfinder_geometry::basic::point::Point2DI32;
 use pathfinder_geometry::basic::rect::RectI32;
 use pathfinder_geometry::basic::transform3d::Transform3DF32;
 use pathfinder_geometry::basic::transform3d::Perspective;
+use pathfinder_gl::GLVersion;
+use pathfinder_gpu::resources::FilesystemResourceLoader;
+use pathfinder_gpu::resources::ResourceLoader;
 
-use std::fmt;
+use std::env;
 use std::error::Error;
+use std::fmt;
 use std::f32::consts::FRAC_PI_4;
+use std::io;
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -43,6 +48,7 @@ pub struct GlWindowDisplay {
     gl_window: Rc<GlWindow>,
     running: bool,
     cameras: Vec<GlWindowCamera>,
+    resource_loader: FilesystemResourceLoader,
 }
 
 pub struct GlWindowCamera {
@@ -61,6 +67,7 @@ pub enum GlWindowError {
     Creation(CreationError),
     Context(ContextError),
     SVG(usvg::Error),
+    IO(io::Error),
 }
 
 const DEFAULT_EYE_WIDTH: u32 = 1024;
@@ -73,6 +80,14 @@ const FAR_CLIP_PLANE:  f32 = 10.0;
 impl Display for GlWindowDisplay {
     type Error = GlWindowError;
     type Camera = GlWindowCamera;
+
+    fn resource_loader(&self) -> &dyn ResourceLoader {
+        &self.resource_loader
+    }
+
+    fn gl_version(&self) -> GLVersion {
+        GLVersion::GL3
+    }
 
     fn make_current(&mut self) -> Result<(), GlWindowError> {
         let size = self.size();
@@ -132,19 +147,23 @@ impl DisplayCamera for GlWindowCamera {
 
     fn perspective(&self) -> Perspective {
         // TODO: add eye offsets
-        let duration = Instant::now() - self.start;
-        let rotation = duration.as_millis() as f32 / 1000.0;
         let bounds = self.bounds();
         let aspect = bounds.size().x() as f32 / bounds.size().y() as f32;
-        let transform = Transform3DF32::from_rotation(rotation, 0.0, 0.0)
-            .pre_mul(&Transform3DF32::from_translation(0.0, 0.0, -CAMERA_DISTANCE))
-            .pre_mul(&Transform3DF32::from_perspective(FRAC_PI_4, aspect, NEAR_CLIP_PLANE, FAR_CLIP_PLANE));
+        let transform = Transform3DF32::from_perspective(FRAC_PI_4, aspect, NEAR_CLIP_PLANE, FAR_CLIP_PLANE);
         Perspective::new(&transform, bounds.size())
+    }
+
+    fn view(&self) -> Transform3DF32 {
+        let duration = Instant::now() - self.start;
+        let rotation = duration.as_millis() as f32 / 1000.0;
+        Transform3DF32::from_rotation(rotation, 0.0, 0.0)
+            .pre_mul(&Transform3DF32::from_translation(0.0, 0.0, -CAMERA_DISTANCE))
     }
 }
 
 impl GlWindowDisplay {
     pub fn new() -> Result<GlWindowDisplay, GlWindowError> {
+        let resource_loader = FilesystemResourceLoader::new(env::current_dir()?);
         let size = default_window_size();
         let events_loop = glutin::EventsLoop::new();
         let window = WindowBuilder::new()
@@ -160,6 +179,7 @@ impl GlWindowDisplay {
         ];	    
         gl::load_with(|name| gl_window.get_proc_address(name) as *const _);
         Ok(GlWindowDisplay {
+	    resource_loader,
             events_loop,
             gl_window,
 	    cameras,
@@ -198,6 +218,7 @@ impl fmt::Display for GlWindowError {
             GlWindowError::Creation(ref err) => err.fmt(formatter),
             GlWindowError::Context(ref err) => err.fmt(formatter),
             GlWindowError::SVG(ref err) => err.fmt(formatter),
+            GlWindowError::IO(ref err) => err.fmt(formatter),
         }
     }
 }
@@ -220,6 +241,12 @@ impl From<ContextError> for GlWindowError {
 impl From<usvg::Error> for GlWindowError {
     fn from(err: usvg::Error) -> GlWindowError {
         GlWindowError::SVG(err)
+    }
+}
+
+impl From<io::Error> for GlWindowError {
+    fn from(err: io::Error) -> GlWindowError {
+        GlWindowError::IO(err)
     }
 }
 

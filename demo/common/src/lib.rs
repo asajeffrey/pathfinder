@@ -685,18 +685,18 @@ enum MainToSceneMsg {
     Build(BuildOptions),
 }
 
-struct BuildOptions {
-    render_transforms: Vec<RenderTransform>,
-    stem_darkening_font_size: Option<f32>,
+pub struct BuildOptions {
+    pub render_transforms: Vec<RenderTransform>,
+    pub stem_darkening_font_size: Option<f32>,
 }
 
-struct SceneToMainMsg {
-    render_scenes: Vec<RenderScene>,
+pub struct SceneToMainMsg {
+    pub render_scenes: Vec<RenderScene>,
     tile_time: Duration,
 }
 
 pub struct RenderScene {
-    built_scene: BuiltScene,
+    pub built_scene: BuiltScene,
     transform: RenderTransform,
 }
 
@@ -708,7 +708,7 @@ pub struct Options {
 }
 
 impl Options {
-    fn get() -> Options {
+    pub fn get() -> Options {
         let matches = App::new("tile-svg")
             .arg(
                 Arg::with_name("jobs")

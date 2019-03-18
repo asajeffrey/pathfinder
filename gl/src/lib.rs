@@ -34,13 +34,13 @@ impl GLDevice {
     #[inline]
     pub fn new(version: GLVersion) -> GLDevice {
         let mut default_framebuffer_id = 0;
-	unsafe {
-	    gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut default_framebuffer_id);
-	}
+        unsafe {
+            gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut default_framebuffer_id);
+        }
         GLDevice {
-	    version: version,
-	    default_framebuffer_id: default_framebuffer_id as GLuint,
-	}
+            version: version,
+            default_framebuffer_id: default_framebuffer_id as GLuint,
+        }
     }
 
     fn set_texture_parameters(&self, texture: &GLTexture) {
@@ -611,11 +611,10 @@ impl Device for GLDevice {
     }
 
     #[inline]
-    fn bind_framebuffer(&self, framebuffer: &GLFramebuffer, bounds: RectI32) {
+    fn bind_framebuffer(&self, framebuffer: &GLFramebuffer) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer.gl_framebuffer); ck();
-            gl::Viewport(bounds.origin().x(), bounds.origin().y(), bounds.size().x(), bounds.size().y()); ck();
-            gl::Scissor(bounds.origin().x(), bounds.origin().y(), bounds.size().x(), bounds.size().y()); ck();
+            gl::Viewport(0, 0, framebuffer.texture.size.x(), framebuffer.texture.size.y()); ck();
         }
     }
 

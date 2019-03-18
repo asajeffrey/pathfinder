@@ -10,7 +10,6 @@
 
 use crate::{Mode, Options};
 use crate::window::Window;
-use crate::Options;
 use pathfinder_geometry::basic::point::Point2DI32;
 use pathfinder_geometry::basic::rect::RectI32;
 use pathfinder_gpu::Device;
@@ -136,7 +135,6 @@ impl<D> DemoUI<D> where D: Device {
             position += Point2DI32::new(button_size.x() + PADDING, 0);
         }
 
-<<<<<<< 49660a6b319950f400d83af08d0baf46fe8dda3e
         // Draw open button.
         if debug_ui.ui.draw_button(device, position, &self.open_texture) {
             // FIXME(pcwalton): This is not sufficient for Android, where we will need to take in
@@ -152,28 +150,10 @@ impl<D> DemoUI<D> where D: Device {
             // the contents of the file.
             if let Ok(file) = window.run_save_dialog("png") {
                 *action = UIAction::TakeScreenshot(file);
-=======
-	#[cfg(feature = "nfd")]
-        {
-            // Draw open button.
-            if debug_ui.ui.draw_button(device, position, &self.open_texture) {
-                if let Ok(Response::Okay(file)) = nfd::open_file_dialog(Some("svg"), None) {
-                    *action = UIAction::OpenFile(PathBuf::from(file));
-                }
             }
-            debug_ui.ui.draw_tooltip(device, "Open SVG", RectI32::new(position, button_size));
-            position += Point2DI32::new(BUTTON_WIDTH + PADDING, 0);
-
-            // Draw screenshot button.
-            if debug_ui.ui.draw_button(device, position, &self.screenshot_texture) {
-                if let Ok(Response::Okay(file)) = nfd::open_save_dialog(Some("png"), None) {
-                    *action = UIAction::TakeScreenshot(PathBuf::from(file));
-                }
->>>>>>> Add magicleap demo
-            }
-            debug_ui.ui.draw_tooltip(device, "Take Screenshot", RectI32::new(position, button_size));
-            position += Point2DI32::new(BUTTON_WIDTH + PADDING, 0);
         }
+        debug_ui.ui.draw_tooltip(device, "Take Screenshot", RectI32::new(position, button_size));
+        position += Point2DI32::new(BUTTON_WIDTH + PADDING, 0);
 
         // Draw mode switch.
         let new_mode = debug_ui.ui.draw_text_switch(device,

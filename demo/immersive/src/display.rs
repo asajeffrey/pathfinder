@@ -9,15 +9,20 @@
 // except according to those terms.
 
 use std::error::Error;
+use std::io;
 use pathfinder_geometry::basic::point::Point2DI32;
 use pathfinder_geometry::basic::rect::RectI32;
 use pathfinder_geometry::basic::transform3d::Perspective;
 use pathfinder_geometry::basic::transform3d::Transform3DF32;
+use pathfinder_gl::GLVersion;
+use pathfinder_gpu::resources::ResourceLoader;
 
 pub trait Display: Sized {
     type Error: DisplayError;
     type Camera: DisplayCamera<Error = Self::Error>;
 
+    fn resource_loader(&self) -> &dyn ResourceLoader;
+    fn gl_version(&self) -> GLVersion;
     fn make_current(&mut self) -> Result<(), Self::Error>;
 
     fn running(&self) -> bool;
@@ -37,5 +42,5 @@ pub trait DisplayCamera {
     fn make_current(&mut self) -> Result<(), Self::Error>;
 }
 
-pub trait DisplayError: Error + From<usvg::Error> {
+pub trait DisplayError: Error + From<usvg::Error> + From<io::Error>{
 }
