@@ -607,6 +607,10 @@ impl Device for GLDevice {
                          viewport.origin().y(),
                          viewport.size().x(),
                          viewport.size().y()); ck();
+            gl::Scissor(viewport.origin().x(),
+                        viewport.origin().y(),
+                        viewport.size().x(),
+                        viewport.size().y()); ck();
         }
     }
 
@@ -615,6 +619,7 @@ impl Device for GLDevice {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer.gl_framebuffer); ck();
             gl::Viewport(0, 0, framebuffer.texture.size.x(), framebuffer.texture.size.y()); ck();
+            gl::Scissor(0, 0, framebuffer.texture.size.x(), framebuffer.texture.size.y()); ck();
         }
     }
 
