@@ -622,7 +622,11 @@ impl<W> DemoApp<W> where W: Window {
     }
 
     fn background_color(&self) -> ColorU {
-        if self.ui.dark_background_enabled { DARK_BG_COLOR } else { LIGHT_BG_COLOR }
+        match self.ui.background {
+            Background::None => ColorU::black(),
+            Background::Dark => DARK_BG_COLOR,
+            Background::Light => LIGHT_BG_COLOR,
+        }
     }
 
 }
@@ -725,6 +729,7 @@ pub struct Options {
     pub mode: Mode,
     pub input_path: SVGPath,
     pub ui: UIVisibility,
+    pub background: Background,
     hidden_field_for_future_proofing: (),
 }
 
@@ -735,6 +740,7 @@ impl Default for Options {
             mode: Mode::TwoD,
             input_path: SVGPath::Default,
             ui: UIVisibility::All,
+            background: Background::Light,
             hidden_field_for_future_proofing: (),
         }
     }
@@ -761,6 +767,14 @@ impl Options {
                     .possible_values(&["none", "stats", "all"])
                     .help("How much UI to show"),
             )
+            .arg(
+                Arg::with_name("bg")
+                    .short("b")
+                    .long("bg")
+                    .takes_value(true)
+                    .possible_values(&["none", "dark", "light"])
+                    .help("Background color scheme"),
+            )
             .arg(Arg::with_name("INPUT").help("Path to the SVG file to render").index(1))
             .get_matches();
 
@@ -782,6 +796,14 @@ impl Options {
             };
         }
 
+        if let Some(bg) = matches.value_of("bg") {
+            self.background = match bg {
+                "dark" => Background::Dark,
+                "light" => Background::Light,
+                _ => Background::None,
+            }
+        }
+
         if let Some(path) = matches.value_of("INPUT") {
             self.input_path = SVGPath::Path(PathBuf::from(path));
         };
@@ -800,6 +822,23 @@ pub enum UIVisibility {
     None,
     Stats,
     All,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Background {
+    None  = 0,
+    Dark  = 1,
+    Light = 2,
+}
+
+impl From<u8> for Background {
+    fn from(val: u8) -> Background {
+        match val {
+            1 => Background::Dark,
+            2 => Background::Light,
+            _ => Background::None,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
