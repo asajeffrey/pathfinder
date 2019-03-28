@@ -238,7 +238,7 @@ impl<W> DemoApp<W> where W: Window {
             barrel_distortion,
         });
 
-        if is_first_frame {
+        if is_first_frame && self.options.pipeline {
             self.scene_thread_proxy.sender.send(msg.clone()).unwrap();
             self.dirty = true;
         }
@@ -740,6 +740,7 @@ pub struct Options {
     pub input_path: SVGPath,
     pub ui: UIVisibility,
     pub background: Background,
+    pub pipeline: bool,
     hidden_field_for_future_proofing: (),
 }
 
@@ -751,6 +752,7 @@ impl Default for Options {
             input_path: SVGPath::Default,
             ui: UIVisibility::All,
             background: Background::Light,
+            pipeline: true,
             hidden_field_for_future_proofing: (),
         }
     }
@@ -785,6 +787,8 @@ impl Options {
                     .possible_values(&["none", "dark", "light"])
                     .help("Background color scheme"),
             )
+            .arg(Arg::with_name("pipeline").short("P").long("pipeline").help("Pipeline scenes").conflicts_with("no-pipeline"))
+            .arg(Arg::with_name("no-pipeline").short("p").long("no-pipeline").help("Don't pipeline scenes").conflicts_with("pipeline"))
             .arg(Arg::with_name("INPUT").help("Path to the SVG file to render").index(1))
             .get_matches();
 
@@ -812,6 +816,12 @@ impl Options {
                 "light" => Background::Light,
                 _ => Background::None,
             }
+        }
+
+        if matches.is_present("pipeline") {
+            self.pipeline = true;
+        } else if matches.is_present("no-pipeline") {
+            self.pipeline = false;
         }
 
         if let Some(path) = matches.value_of("INPUT") {
