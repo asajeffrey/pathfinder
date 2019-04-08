@@ -192,7 +192,7 @@ impl Window for WindowImpl {
         RectI32::new(offset, size)
     }
 
-    fn present(&self) {}
+    fn present(&mut self) {}
 
     fn resource_loader(&self) -> &dyn ResourceLoader {
         &RESOURCE_LOADER

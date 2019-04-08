@@ -105,7 +105,7 @@ impl Window for WindowImpl {
         RectI32::new(offset, size)
     }
 
-    fn present(&self) {
+    fn present(&mut self) {
         self.window.gl_swap_window();
     }
 
